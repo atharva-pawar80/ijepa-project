@@ -19,7 +19,10 @@ import time
 import argparse
 import torch
 
-sys.path.append(os.path.dirname(__file__))
+# trainer.py lives in backend/app/ml/training/, but ijepa.py lives one level
+# up in backend/app/ml/ -- so we need the PARENT directory on the path, not
+# this file's own directory.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ijepa import IJEPA, embedding_variance
 from training.ema import MomentumSchedule, update_target_encoder
 from training.loss import ijepa_loss

@@ -17,12 +17,25 @@ import torchvision.transforms as T
 from masking import build_ijepa_masks_batch
 
 
-def get_cifar10_datasets(data_dir="./data", img_size=96):
-    """Downloads CIFAR-10 (first run only) and resizes to img_size x img_size
-    so it's compatible with whatever patch_size your ViT uses.
+def get_cifar10_datasets(data_dir="./data", img_size=96, use_fast_mirror=True):
+    """Downloads CIFAR-10 and resizes to img_size x img_size so it's
+    compatible with whatever patch_size your ViT uses.
     NOTE: CIFAR-10 images are natively 32x32 -- upsizing to 96 is a practical
     compromise for a fast toy-scale run, not something the paper does.
+
+    use_fast_mirror=True (default): loads via the HuggingFace `datasets`
+    library, which serves CIFAR-10 from HuggingFace's own CDN -- a
+    genuinely different, fast host than torchvision's default
+    (cs.toronto.edu), which is frequently very slow/flaky from Colab.
+    Falls back to torchvision automatically if `datasets` isn't installed.
     """
+    if use_fast_mirror:
+        try:
+            return _get_cifar10_via_huggingface(img_size)
+        except ImportError:
+            print("`datasets` library not available, falling back to "
+                  "torchvision download (may be slow)...")
+
     transform = T.Compose([
         T.Resize((img_size, img_size)),
         T.ToTensor(),
@@ -34,6 +47,42 @@ def get_cifar10_datasets(data_dir="./data", img_size=96):
     test_set = torchvision.datasets.CIFAR10(
         root=data_dir, train=False, download=True, transform=transform
     )
+    return train_set, test_set
+
+
+class _HFCIFAR10(torch.utils.data.Dataset):
+    """Wraps a HuggingFace `datasets` CIFAR-10 split as a torch Dataset,
+    applying the same resize + normalize transform torchvision's version uses.
+    """
+
+    def __init__(self, hf_dataset, img_size):
+        self.hf_dataset = hf_dataset
+        self.transform = T.Compose([
+            T.Resize((img_size, img_size)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]),
+        ])
+
+    def __len__(self):
+        return len(self.hf_dataset)
+
+    def __getitem__(self, idx):
+        item = self.hf_dataset[idx]
+        # Field name is "img" on uoft-cs/cifar10, but handle "image" too in
+        # case HuggingFace's schema naming changes again in the future.
+        raw_img = item.get("img", item.get("image"))
+        img = self.transform(raw_img.convert("RGB"))  # PIL Image -> tensor
+        label = int(item["label"])
+        return img, label
+
+
+def _get_cifar10_via_huggingface(img_size):
+    from datasets import load_dataset  # pip install datasets
+    # HuggingFace requires a namespace/name id -- the official CIFAR-10
+    # mirror lives at "uoft-cs/cifar10" (plain "cifar10" no longer resolves).
+    ds = load_dataset("uoft-cs/cifar10")  # downloads from HuggingFace's CDN
+    train_set = _HFCIFAR10(ds["train"], img_size)
+    test_set = _HFCIFAR10(ds["test"], img_size)
     return train_set, test_set
 
 

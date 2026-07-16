@@ -65,8 +65,14 @@ class IJEPA(nn.Module):
             (paper restricts mask size to be identical within a batch for
             efficient collation; sampling can still differ per-image if you
             extend this, as long as Nc is constant)
-        target_blocks: list of M (indices, box) tuples from masking.py,
-            each indices: (Nt_i,) long -- will be expanded across the batch
+        target_blocks: list of M (indices, box) tuples from masking.py.
+            `indices` may be EITHER:
+              - 1D (Nt_i,): the same target-block positions for every image
+                in the batch (what build_ijepa_masks returns -- used by the
+                overfit-one-batch test below), OR
+              - 2D (B, Nt_i): per-image target-block positions (what
+                build_ijepa_masks_batch / the real DataLoader returns).
+            Both are handled transparently here.
 
         Returns: (predictions, targets) -- both lists of M tensors, ready to
             pass straight into training.loss.ijepa_loss
@@ -83,7 +89,10 @@ class IJEPA(nn.Module):
 
         predictions, targets = [], []
         for indices, _box in target_blocks:
-            target_idx_batch = indices.unsqueeze(0).expand(B, -1)  # (B, Nt_i)
+            if indices.dim() == 1:
+                target_idx_batch = indices.unsqueeze(0).expand(B, -1)  # (B, Nt_i)
+            else:
+                target_idx_batch = indices  # already (B, Nt_i)
 
             # Predictor gets context tokens + mask tokens at this block's positions.
             pred = self.predictor(context_tokens, context_indices, target_idx_batch)
