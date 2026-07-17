@@ -462,7 +462,7 @@
       desc: 'A context block (blue) is sampled, then 4 target blocks (coral) are sampled independently. Any overlap is cut out of the context -- so the model can\'t cheat by copying nearby pixels.',
       note: 'scale: context 0.85–1.0 · targets 0.15–0.2 each',
       render: () => {
-        const grid = makeGrid(i => {
+        const grid = makePatchGrid(i => {
           if (targetCellSet.has(i)) {
             const block = targetBlocks.find(b => b.cells.includes(i));
             return block.cls;
