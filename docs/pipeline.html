@@ -492,6 +492,23 @@
         return row;
       }
     },
+    {
+  title: '7. EMA update',
+  desc: 'After every training step, the target encoder\'s weights nudge slightly toward the context encoder\'s -- never overwritten, just gently pulled.',
+  note: 'momentum starts at 0.996, ramps to 1.0 over training',
+  render: () => {
+    const row = document.createElement('div');
+    row.className = 'flow-row';
+    row.appendChild(labeled(makeTokenStack(6, ''), 'context encoder weights'));
+    row.appendChild(arrow());
+    const tag = document.createElement('div');
+        tag.className = 'loss-tag';
+        tag.textContent = 'target = m·target + (1-m)·context';
+    row.appendChild(tag);
+    row.appendChild(labeled(makeTokenStack(6, 'target-tok'), 'target encoder weights'));
+    return row;
+  }
+},
   ];
 
   let current = 0;
