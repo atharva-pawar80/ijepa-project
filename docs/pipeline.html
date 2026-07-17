@@ -419,7 +419,7 @@
       render: () => {
         const row = document.createElement('div');
         row.className = 'flow-row';
-        const grid = makeGrid(() => '');
+        const grid = makePatchGrid(() => '');
         row.appendChild(labeled(grid, 'full image, everything visible'));
         row.appendChild(arrow());
         const stack = document.createElement('div');
