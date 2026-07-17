@@ -405,7 +405,7 @@
       render: () => {
         const row = document.createElement('div');
         row.className = 'flow-row';
-        const grid = makeGrid(i => targetCellSet.has(i) ? 'dim' : 'context');
+        const grid = makePatchGrid(i => targetCellSet.has(i) ? 'dim' : 'context');
         row.appendChild(labeled(grid, 'visible context patches'));
         row.appendChild(arrow());
         row.appendChild(labeled(makeTokenStack(6, ''), 'context tokens'));
