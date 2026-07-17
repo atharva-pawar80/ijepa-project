@@ -203,6 +203,23 @@
   .patch.target-3 { background: var(--coral); opacity: 0.5; }
   .patch.dim { opacity: 0.12; }
 
+  /* Photo-backed grid cell: a positioned wrapper holding a sliced-in photo
+     background, with the existing .patch color classes reused as an
+     absolutely-positioned overlay on top -- same colors/opacity as the
+     abstract grid, just tinting a real photo now instead of a page bg. */
+  .patch-photo {
+    position: relative;
+    border-radius: 1px;
+    overflow: hidden;
+    background-color: var(--gray);
+    background-repeat: no-repeat;
+  }
+  .patch-photo .patch.overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
+  }
+
   .flow-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
   .arrow-icon { font-size: 22px; color: var(--ink-soft); flex-shrink: 0; }
 
@@ -285,6 +302,14 @@
     underneath the live demo — not a simplified cartoon version.
   </p>
 
+  <div class="stage-panel" style="margin-bottom:16px; padding:20px 32px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <label class="btn secondary" for="pipelineUpload" style="cursor:pointer;">Upload your own photo</label>
+      <input type="file" id="pipelineUpload" accept="image/*" style="display:none;">
+      <span class="box-label" id="uploadStatus" style="margin:0;">using an abstract grid — upload a photo to see it applied to a real image</span>
+    </div>
+  </div>
+
   <div class="stepper" id="stepper"></div>
 
   <div class="stage-panel">
@@ -341,6 +366,55 @@
     return grid;
   }
 
+  // --- Photo upload support ---
+  let uploadedImageSrc = null;
+
+  // Same signature/behavior as makeGrid(highlightFn), but if a photo has
+  // been uploaded, each cell shows a real slice of it (like a sprite sheet:
+  // one shared background-image, positioned differently per cell) with the
+  // same color classes overlaid on top via a nested .overlay div. Falls
+  // back to the plain abstract makeGrid() when no photo is uploaded yet.
+  function makePatchGrid(highlightFn) {
+    if (!uploadedImageSrc) return makeGrid(highlightFn);
+
+    const grid = document.createElement('div');
+    grid.className = 'patch-grid';
+    for (let i = 0; i < TOTAL; i++) {
+      const row = Math.floor(i / GRID);
+      const col = i % GRID;
+
+      const cell = document.createElement('div');
+      cell.className = 'patch-photo';
+      cell.style.backgroundImage = `url(${uploadedImageSrc})`;
+      cell.style.backgroundSize = `${GRID * 100}% ${GRID * 100}%`;
+      // Position this cell's "window" onto the shared background image --
+      // standard CSS sprite-sheet math: percentage moves along (GRID-1) steps.
+      cell.style.backgroundPosition =
+        `${(col / (GRID - 1)) * 100}% ${(row / (GRID - 1)) * 100}%`;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'patch overlay ' + (highlightFn(i) || '');
+      cell.appendChild(overlay);
+
+      grid.appendChild(cell);
+    }
+    return grid;
+  }
+
+  const uploadInput = document.getElementById('pipelineUpload');
+  const uploadStatus = document.getElementById('uploadStatus');
+  uploadInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      uploadedImageSrc = evt.target.result;
+      uploadStatus.textContent = 'showing your photo — re-visit earlier stages to see it applied';
+      render(); // redraw the current stage with the new photo
+    };
+    reader.readAsDataURL(file);
+  });
+
   function makeTokenStack(count, cls, delayStart) {
     const stack = document.createElement('div');
     stack.className = 'token-stack';
@@ -379,7 +453,7 @@
       desc: 'Any image gets split into a grid of patches -- 8×8 here for clarity (the real model uses a finer grid). Nothing is hidden yet.',
       note: '',
       render: () => {
-        const grid = makeGrid(() => '');
+        const grid = makePatchGrid(() => '');
         return labeled(grid, 'input image, as patches');
       }
     },
@@ -388,7 +462,7 @@
       desc: 'A context block (blue) is sampled, then 4 target blocks (coral) are sampled independently. Any overlap is cut out of the context -- so the model can\'t cheat by copying nearby pixels.',
       note: 'scale: context 0.85–1.0 · targets 0.15–0.2 each',
       render: () => {
-        const grid = makePatchGrid(i => {
+        const grid = makeGrid(i => {
           if (targetCellSet.has(i)) {
             const block = targetBlocks.find(b => b.cells.includes(i));
             return block.cls;
@@ -405,7 +479,7 @@
       render: () => {
         const row = document.createElement('div');
         row.className = 'flow-row';
-        const grid = makePatchGrid(i => targetCellSet.has(i) ? 'dim' : 'context');
+        const grid = makeGrid(i => targetCellSet.has(i) ? 'dim' : 'context');
         row.appendChild(labeled(grid, 'visible context patches'));
         row.appendChild(arrow());
         row.appendChild(labeled(makeTokenStack(6, ''), 'context tokens'));
@@ -492,23 +566,6 @@
         return row;
       }
     },
-    {
-  title: '7. EMA update',
-  desc: 'After every training step, the target encoder\'s weights nudge slightly toward the context encoder\'s -- never overwritten, just gently pulled.',
-  note: 'momentum starts at 0.996, ramps to 1.0 over training',
-  render: () => {
-    const row = document.createElement('div');
-    row.className = 'flow-row';
-    row.appendChild(labeled(makeTokenStack(6, ''), 'context encoder weights'));
-    row.appendChild(arrow());
-    const tag = document.createElement('div');
-        tag.className = 'loss-tag';
-        tag.textContent = 'target = m·target + (1-m)·context';
-    row.appendChild(tag);
-    row.appendChild(labeled(makeTokenStack(6, 'target-tok'), 'target encoder weights'));
-    return row;
-  }
-},
   ];
 
   let current = 0;
