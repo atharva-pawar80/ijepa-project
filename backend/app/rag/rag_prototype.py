@@ -27,9 +27,13 @@ def embed_chunks(chunks):
         print(f"Embeddings shape: {embeddings.shape}")
 
 def cosine_sim(a, b):
-    """TODO: you already wrote this exact function in live_demo.html's JS --
-    port it to numpy. dot(a,b) / (norm(a) * norm(b))"""
-    pass
+    dot = 0
+    normA = 0
+    normB = 0
+    dot = np.dot(a, b)
+    normA = np.linalg.norm(a)
+    normB = np.linalg.norm(b)
+    return dot / (normA * normB) if normA > 0 and normB > 0 else 0.0
 
 def retrieve(query, chunks, chunk_embeddings, top_k=3):
     """TODO: embed the query (embedder.encode([query])), compute cosine_sim
