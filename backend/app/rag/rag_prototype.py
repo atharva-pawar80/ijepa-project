@@ -20,9 +20,11 @@ def load_and_chunk(folder, chunk_size=500):
     return chunks
 
 def embed_chunks(chunks):
-    """TODO: use embedder.encode(chunks) to get a numpy array of vectors,
-    one per chunk. Check the shape afterward -- should be (num_chunks, 384)."""
-    pass
+        chunks = load_and_chunk("../../..")  # or wherever you ended up after the multi-folder fix
+        print(f"Got {len(chunks)} chunks")
+
+        embeddings = embed_chunks(chunks)
+        print(f"Embeddings shape: {embeddings.shape}")
 
 def cosine_sim(a, b):
     """TODO: you already wrote this exact function in live_demo.html's JS --
